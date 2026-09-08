@@ -1,54 +1,98 @@
-from datetime import datetime, timedelta, timezone
-import os
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from fastapi import Depends
+from app.dependencies.auth import get_current_user
 
-
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-this")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-
-
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
+from app.database import users_collection
+from app.auth import (
+    hash_password,
+    verify_password,
+    create_access_token
 )
 
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"]
+)
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
+@router.post("/register")
+def register(user: RegisterRequest):
 
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    # Check if user already exists
+    existing_user = users_collection.find_one(
+        {"email": user.email}
     )
 
-    to_encode.update({"exp": expire})
-
-    return jwt.encode(
-        to_encode,
-        SECRET_KEY,
-        algorithm=ALGORITHM
-    )
-
-
-def verify_token(token: str):
-    try:
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="User already exists"
         )
 
-        return payload
+    # Create user document
+    new_user = {
+        "name": user.name,
+        "email": user.email,
+        "password_hash": hash_password(user.password),
+        "role": "support_staff",
+        "status": "active"
+    }
 
-    except JWTError:
-        return None
+    # Save to MongoDB
+    result = users_collection.insert_one(new_user)
+
+    return {
+        "message": "User registered successfully",
+        "user_id": str(result.inserted_id)
+    }
+
+@router.post("/login")
+def login(user: LoginRequest):
+
+    existing_user = users_collection.find_one(
+        {"email": user.email}
+    )
+
+    if not existing_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(
+        user.password,
+        existing_user["password_hash"]
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    access_token = create_access_token(
+        {
+            "sub": str(existing_user["_id"]),
+            "role": existing_user["role"]
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    return current_user
