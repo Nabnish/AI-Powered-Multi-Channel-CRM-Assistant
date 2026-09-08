@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import {
   Users,
@@ -21,9 +20,9 @@ const navItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="h-screen w-60 shrink-0 bg-[#0d0d0f] text-gray-300 flex flex-col border-r border-white/5">
-      <div className="px-5 py-5 text-lg font-semibold text-white">
-        cmr<span className="text-indigo-400">.</span>
+    <aside className="h-screen w-60 shrink-0 bg-surface text-text-secondary flex flex-col border-r border-border">
+      <div className="px-5 py-5 text-lg font-semibold text-text-primary">
+        cmr<span className="text-accent">.</span>
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
@@ -32,10 +31,10 @@ export default function Sidebar() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              `flex items-center gap-3 px-3 py-2 rounded-[var(--radius-card)] text-sm transition-colors ${
                 isActive
-                  ? "bg-white/10 text-white"
-                  : "hover:bg-white/5 hover:text-white"
+                  ? "bg-surface-hover text-text-primary"
+                  : "hover:bg-surface-hover hover:text-text-primary"
               }`
             }
           >
@@ -45,10 +44,10 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/5">
+      <div className="px-3 py-4 border-t border-border">
         <NavLink
           to="/profile"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-white/5 hover:text-white"
+          className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-card)] text-sm hover:bg-surface-hover hover:text-text-primary"
         >
           <User size={16} />
           Profile
